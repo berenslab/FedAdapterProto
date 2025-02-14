@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
+import os
 import copy, sys
 import time
 import numpy as np
@@ -28,6 +29,7 @@ from utils import (
     param_aggregation, 
     agg_func, 
     weighted_param_aggregation,
+    param_aggregation_fednova,
     weight_fednova_param_aggregation
 )
 
@@ -52,7 +54,8 @@ def FedProtoAdap_taskheter(
     global_adapters = []  # Initialize empty global adapters
 
     # train_loss = []
-    for round in tqdm(range(args.rounds)):
+    form='{desc:<5.5}{percentage:3.0f}%|{bar:20}{r_bar}'
+    for round in tqdm(range(args.rounds), ascii=True, bar_format=form):
         local_weights, local_losses = [], []
         local_protos = {}
         local_adapters = {}
@@ -118,15 +121,34 @@ def FedProtoAdap_taskheter(
 
         # Aggregate global prototypes and adapters
         global_protos = param_aggregation(local_protos)
+        if args.adapt_agg == 'simple_agg':
+            global_adapters = param_aggregation(local_adapters)
+        elif args.adapt_agg == 'weighted_agg':
+            global_adapters = weighted_param_aggregation(
+                local_adapters,
+                client_data_sizes
+            )
+        elif args.adapt_agg == 'fednova_agg':
+            global_adapters = param_aggregation_fednova(
+                local_adapters, 
+                local_steps
+            )
+        elif args.adapt_agg == 'fednova_weighted_agg':
+            global_adapters = weight_fednova_param_aggregation(
+                local_adapters,
+                local_steps,
+                client_data_sizes
+            )
+
         # global_adapters = weighted_param_aggregation(
         #     local_adapters,
         #     client_data_sizes
         # )
-        global_adapters = weight_fednova_param_aggregation(
-            local_adapters,
-            local_steps,
-            client_data_sizes
-        )
+        # global_adapters = weight_fednova_param_aggregation(
+        #     local_adapters,
+        #     local_steps,
+        #     client_data_sizes
+        # )
 
         # update global weights
         local_weights_list = local_weights
@@ -137,6 +159,9 @@ def FedProtoAdap_taskheter(
         
     # saving the global model
     model_name = args.log_name.split('.')[0]
+    directory = '../save_model/{}'.format(model_name)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
     for idx in range(args.num_users):
         torch.save(
             local_model_list[idx].state_dict(), 
@@ -145,19 +170,17 @@ def FedProtoAdap_taskheter(
             )
         )
 
-        # if 'prototype_layer' in local_model_list[idx].state_dict().keys():
         torch.save(
-            # local_model_list[idx].state_dict()['prototype_layer'],
             local_model_list[idx].prototype_layer.state_dict(),
-            '../save_model/{}_protos_{}.pt'.format(
-                args.dataset, idx
+            '../save_model/{}/{}_protos_{}.pt'.format(
+                model_name, args.dataset, idx
             )
         )
 
         torch.save(
             local_model_list[idx].adapters.state_dict(),
-            '../save_model/{}_adapters_{}.pt'.format(
-                args.dataset, idx
+            '../save_model/{}/{}_adapters_{}.pt'.format(
+                model_name, args.dataset, idx
             )
         )
 
@@ -186,7 +209,6 @@ if __name__ == '__main__':
 
     args = args_parser()
     
-
     log_file = '../logs/' + args.log_name
     log_fh = logging.FileHandler(log_file)
     log_sh = logging.StreamHandler(sys.stdout)

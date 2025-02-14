@@ -9,14 +9,14 @@ class PrototypeLayer(nn.Module):
     def __init__(
             self, 
             num_classes, 
+            paf='linear',
             init_weights=False,
-            prototype_shape = (10, 1024, 1, 1),
-            # prototypes_per_class=5
+            prototype_shape = (10, 1024, 1, 1)
         ):
         super().__init__()
         self.prototype_shape = prototype_shape
         self.num_classes = num_classes
-        self.prototype_activation_function = 'linear'
+        self.prototype_activation_function = paf
         self.epsilon = 1e-4
         self.num_prototypes = self.prototype_shape[0]
 
@@ -154,7 +154,7 @@ class PrototypeLayer(nn.Module):
         return logits, min_distances
 
 class AdapterModule(nn.Module):
-    def __init__(self, input_dim, reduction_factor=16):
+    def __init__(self, input_dim, reduction_factor=16, init_weights=False):
         super(AdapterModule, self).__init__()
         hidden_dim = input_dim // reduction_factor
         self.adapter = nn.Sequential(
@@ -164,15 +164,16 @@ class AdapterModule(nn.Module):
             # nn.ReLU()
         )
 
-        # for layer in self.adapter:
-        #     if isinstance(layer, nn.Conv2d):
-        #         nn.init.kaiming_normal_(
-        #             layer.weight, 
-        #             mode='fan_out', 
-        #             nonlinearity='relu'
-        #         )
-        #         if layer.bias is not None:
-        #             nn.init.constant_(layer.bias, 0)
+        if init_weights:
+            for layer in self.adapter:
+                if isinstance(layer, nn.Conv2d):
+                    nn.init.kaiming_normal_(
+                        layer.weight, 
+                        mode='fan_out', 
+                        nonlinearity='relu'
+                    )
+                    if layer.bias is not None:
+                        nn.init.constant_(layer.bias, 0)
 
     def forward(self, x):
         return x + self.adapter(x)
@@ -193,21 +194,40 @@ class ResNet(nn.Module):
 
         # Add adapters to specific layers
         self.adapters = nn.ModuleDict({
-            "layer1": AdapterModule(256, args.red_factor),
-            "layer2": AdapterModule(512, args.red_factor),
-            "layer3": AdapterModule(1024, args.red_factor),
-            "layer4": AdapterModule(2048, args.red_factor),
+            "layer1": AdapterModule(
+                256,
+                args.red_factor, 
+                args.init_weight_adapter
+            ),
+            "layer2": AdapterModule(
+                512, 
+                args.red_factor, 
+                args.init_weight_adapter
+            ),
+            "layer3": AdapterModule(
+                1024, 
+                args.red_factor, 
+                args.init_weight_adapter
+            ),
+            "layer4": AdapterModule(
+                2048, 
+                args.red_factor, 
+                args.init_weight_adapter
+            ),
         })
 
         self.prototype_layer = PrototypeLayer(
             num_classes=2,
+            paf=args.proto_activation,
             prototype_shape=args.proto_shape,
+            init_weights=args.init_weight_proto
         )
 
     def forward(self, x):
         x = self.base_model.conv1(x)
         x = self.base_model.bn1(x)
         x = self.base_model.relu(x)
+        # maybe add dropout and maxpool here
 
         x = self.base_model.layer1(x)
         x = self.adapters["layer1"](x)
