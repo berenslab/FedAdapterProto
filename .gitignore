@@ -1,0 +1,9 @@
+# ignore ALL .log files
+*.log
+*.ipynb
+*.npy
+*.npz
+*.pyc
+*.pt
+*.svg
+*.0
