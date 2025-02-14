@@ -322,7 +322,9 @@ class LocalUpdate(object):
                                             'prototype_layer.' + n
                                         ].to(self.device)
                                     )
-                                loss_proto_init += (0.01 / 2.0) * loss_proto
+                                loss_proto_init += (
+                                    self.args.prox / 2.0
+                                ) * loss_proto
                     else:
                         loss_proto_init = 0.0
 
@@ -339,7 +341,9 @@ class LocalUpdate(object):
                                     p,
                                     global_adapter[n].to(self.device)
                                 )
-                            loss_adapter_init += (0.01 / 2.0) * loss_adapter
+                            loss_adapter_init += (
+                                self.args.prox / 2.0
+                            ) * loss_adapter
                     else:
                         loss_adapter_init = 0.0
 

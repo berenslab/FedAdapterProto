@@ -26,7 +26,7 @@ def get_dataset(args):
             low_memory=False
         )
         data = data.loc[:, ~data.columns.str.match('Unnamed')]
-        # data = data[data['image_path'].str.contains('images-set-1')]
+        data = data[data['image_path'].str.contains('images-set-1')]
         data = data[(data['image_field'] == 'field 1')]
         quality = ['Adequate', 'Good', 'Excellent']
         data = data[data['session_image_quality'].isin(quality)]
@@ -464,15 +464,16 @@ def weight_fednova_param_aggregation(
     return agg_params_label
 
 
-
 def exp_details(args, logger):
     logger.info(f'\nExperimental details:')
     logger.info(f'    Model     : {args.model}')
     logger.info(f'    Prototype_shape : {args.proto_shape}')
+    logger.info(f'    Prototype activation : {args.proto_activation}') 
     logger.info(f'    Reduction factor : {args.red_factor}')
     logger.info(f'    Optimizer : {args.optimizer}')
     logger.info(f'    Learning  : {args.lr}')
     logger.info(f'    Global Rounds   : {args.rounds}\n')
+    
 
     logger.info('    Federated parameters:')
     if args.iid:
@@ -481,6 +482,9 @@ def exp_details(args, logger):
         logger.info('    Non-IID')
     logger.info(f'    Local Batch size   : {args.local_bs}')
     logger.info(f'    Local Epochs       : {args.train_ep}')
+    if args.use_prox:
+        logger.info(f'    Proximal term      : {args.prox}')
+    logger.info(f'    Adapter Aggregation : {args.adapt_agg}')
     logger.info(f'    Number of users    : {args.num_users}\n')
 
     logger.info('    Dataset parameters:')
