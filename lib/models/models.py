@@ -186,9 +186,10 @@ class ResNet(nn.Module):
             weights=models.ResNet50_Weights.IMAGENET1K_V1
         )
 
-        # Freeze all parameters of the base ResNet
-        for param in self.base_model.parameters():
-            param.requires_grad = False
+        if not args.fine_tune:
+            # Freeze all parameters of the base ResNet
+            for param in self.base_model.parameters():
+                param.requires_grad = False
 
         self.base_model.fc = nn.Identity()
 

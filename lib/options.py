@@ -51,6 +51,8 @@ def args_parser():
                         help="prototype activation function")
     parser.add_argument('--adapt_agg', type=str, default='simple_agg', 
                         help="adapter aggregation", required=True)
+    parser.add_argument('--fine_tune', type=int, default=1, help="fine tune \
+                        the pretrained model")
 
     # other arguments
     parser.add_argument('--data_dir', type=str, default='../data/', 

@@ -472,9 +472,12 @@ def exp_details(args, logger):
     logger.info(f'    Reduction factor : {args.red_factor}')
     logger.info(f'    Optimizer : {args.optimizer}')
     logger.info(f'    Learning  : {args.lr}')
-    logger.info(f'    Global Rounds   : {args.rounds}\n')
+    logger.info(f'    Global Rounds   : {args.rounds}')
+    if args.fine_tune:
+        logger.info('    Fine-tuning base model\n')
+    else:
+        logger.info('    Transfer learning\n')
     
-
     logger.info('    Federated parameters:')
     if args.iid:
         logger.info('    IID')
