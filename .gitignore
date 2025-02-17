@@ -7,3 +7,10 @@
 *.pt
 *.svg
 *.0
+
+tensorboard/
+wandb/
+sweep.py
+sweep.yaml
+configs/
+scripts/sweep.sh

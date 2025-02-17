@@ -17,8 +17,6 @@ def args_parser():
                         help="number of rounds of training")
     parser.add_argument('--num_users', type=int, default=20,
                         help="number of users: K")
-    parser.add_argument('--frac', type=float, default=0.04,
-                        help='the fraction of clients: C')
     parser.add_argument('--train_ep', type=int, default=1,
                         help="the number of local episodes: E")
     parser.add_argument('--local_bs', type=int, default=4,
@@ -63,7 +61,7 @@ def args_parser():
                         of classes")
     parser.add_argument('--target', type=str, default='diabetes', help="target \
                         for classification")
-    parser.add_argument('--img_size', type=int, default=512, help="img size")
+    parser.add_argument('--img_size', type=int, default=224, help="img size")
     parser.add_argument('--use_sampler', type=int, default=0, 
                         help="use sampler")
     parser.add_argument('--gpu', default=0, help="To use cuda, set \
@@ -72,10 +70,11 @@ def args_parser():
                         of optimizer")
     parser.add_argument('--iid', type=int, default=0,
                         help='Default set to IID. Set to 0 for non-IID.')
-    parser.add_argument('--stopping_rounds', type=int, default=10,
-                        help='rounds of early stopping')
     parser.add_argument('--verbose', type=int, default=1, help='verbose')
     parser.add_argument('--seed', type=int, default=1000, help='random seed')
+
+    # Add wandb sweep argument
+    # parser.add_argument('--config', type=str, help='Path to config file for wandb sweep')
 
     args = parser.parse_args()
     return args
