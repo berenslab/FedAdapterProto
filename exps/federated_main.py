@@ -44,9 +44,8 @@ def FedProtoAdap_taskheter(
         local_model_list
     ):
     summary_writer = SummaryWriter(
-        '../tensorboard/' + args.dataset + '_fedprotoadap_' 
-        + 'w' + 's' + 'e_' + str(args.num_users) 
-        + 'u_' + str(args.rounds) + 'r'
+        '../tensorboard/' + args.dataset + args.log_name.split('.')[0] 
+        + str(args.num_users) + 'u_' + str(args.rounds) + 'r'
     )
 
     idxs_users = user_groups.keys()
