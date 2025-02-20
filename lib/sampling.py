@@ -165,7 +165,7 @@ def create_noniid_split(
 #         all_idxs = list(set(all_idxs) - dict_users[i])
 #     return dict_users
 
-def fundus_iid(dataset, num_users, train_ratio=0.8, phase='train'):
+def fundus_iid_old(dataset, num_users, train_ratio=0.8, phase='train'):
     """
     Sample I.I.D. client data from Fundus dataset and split into train and test sets
     :param dataset: The dataset object
@@ -203,7 +203,7 @@ def fundus_iid(dataset, num_users, train_ratio=0.8, phase='train'):
 
     return dict_train if phase == 'train' else dict_test
 
-def fundus_iid_v2(dataset, num_users, phase='train'):
+def fundus_iid(dataset, num_users, phase='train'):
     """
     Sample I.I.D. client data from Fundus dataset
     :param dataset: The dataset object
@@ -216,24 +216,28 @@ def fundus_iid_v2(dataset, num_users, phase='train'):
 
     if phase == 'train':
         sites = df[col].value_counts().head(n=num_users).index
+
+        df = df[df[col].isin(sites)].reset_index(drop=True)
+
+        num_items = int(len(df) / num_users)
+        dict_users, all_idxs = {}, np.arange(len(df))
+
+        for i in range(num_users):
+            dict_users[i] = set(
+                np.random.choice(
+                    all_idxs, 
+                    num_items,
+                    replace=False
+                )
+            )
+            all_idxs = np.setdiff1d(all_idxs, list(dict_users[i]))
     else:
         sites = df[col].value_counts().iloc[num_users:num_users+1].index
         num_users = 2  # Keeping it consistent with non-IID function
-    
-    df = df[df[col].isin(sites)].reset_index(drop=True)
 
-    num_items = int(len(df) / num_users)
-    dict_users, all_idxs = {}, np.arange(len(df))
-
-    for i in range(num_users):
-        dict_users[i] = set(
-            np.random.choice(
-                all_idxs, 
-                num_items,
-                replace=False
-            )
-        )
-        all_idxs = np.setdiff1d(all_idxs, list(dict_users[i]))
+        df = df[df[col].isin(sites)].reset_index(drop=True)
+        dict_sites = df.groupby(col).apply(lambda x: x.index.tolist()).to_dict()
+        dict_users = {item: np.array(dict_sites.get(item, [])) for item in sites}
 
     return dict_users
 
