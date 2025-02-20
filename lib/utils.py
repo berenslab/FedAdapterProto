@@ -467,6 +467,7 @@ def weight_fednova_param_aggregation(
 def exp_details(args, logger):
     logger.info(f'\nExperimental details:')
     logger.info(f'    Model     : {args.model}')
+    logger.info(f'    Mode      : {args.mode}')
     logger.info(f'    Prototype_shape : {args.proto_shape}')
     logger.info(f'    Prototype activation : {args.proto_activation}') 
     logger.info(f'    Reduction factor : {args.red_factor}')

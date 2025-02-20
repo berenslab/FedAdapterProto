@@ -22,7 +22,7 @@ if str(mod_dir) not in sys.path:
 
 from options import args_parser
 from update import LocalUpdate, test_inference_new_het_lt
-from models import ResNet
+from models import ResNet, ConvNext, RegNet, VGG, DenseNet
 from utils import (
     get_dataset, 
     exp_details, 
@@ -34,7 +34,7 @@ from utils import (
 )
 
 
-def FedProtoAdap_taskheter(
+def FedProtoAdap_heter(
         args, 
         logger,
         train_dataset, 
@@ -139,16 +139,6 @@ def FedProtoAdap_taskheter(
                 client_data_sizes
             )
 
-        # global_adapters = weighted_param_aggregation(
-        #     local_adapters,
-        #     client_data_sizes
-        # )
-        # global_adapters = weight_fednova_param_aggregation(
-        #     local_adapters,
-        #     local_steps,
-        #     client_data_sizes
-        # )
-
         # update global weights
         local_weights_list = local_weights
         for idx, _ in enumerate(idxs_users):
@@ -232,15 +222,26 @@ if __name__ == '__main__':
 
     # Build models
     local_model_list = []
-    for i in range(args.num_users):
-        # if args.dataset in ['fundus', 'oct']:               
-        local_model = ResNet(args)
+    if args.mode == 'task_heter':
+        for i in range(args.num_users):
+            # if args.dataset in ['fundus', 'oct']:               
+            local_model = ResNet(args)
 
-        local_model.to(args.device)
-        local_model.train()
-        local_model_list.append(local_model)
+            local_model.to(args.device)
+            local_model.train()
+            local_model_list.append(local_model)
+    elif args.mode == 'model_heter':
+        models = [ResNet, ConvNext, RegNet, VGG, DenseNet]
+        for i in range(args.num_users):
+            model = models[i]
+            local_model = model(args)
+            local_model.to(args.device)
+            local_model.train()
+            local_model_list.append(local_model)
+    else:
+        exit('Error: unrecognized mode')
 
-    FedProtoAdap_taskheter(
+    FedProtoAdap_heter(
         args, 
         logger,
         train_dataset, 

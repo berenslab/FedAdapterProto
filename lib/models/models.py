@@ -5,13 +5,43 @@ from torchvision.models import resnet50
 import torchvision.models as models
 
 
+class LayerNorm(nn.Module):
+    r""" LayerNorm that supports two data formats: channels_last (default) or channels_first. 
+    The ordering of the dimensions in the inputs. channels_last corresponds to inputs with 
+    shape (batch_size, height, width, channels) while channels_first corresponds to inputs 
+    with shape (batch_size, channels, height, width).
+
+    from https://github.com/facebookresearch/ConvNeXt
+    """
+    def __init__(self, normalized_shape, eps=1e-6, data_format="channels_last"):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(normalized_shape))
+        self.bias = nn.Parameter(torch.zeros(normalized_shape))
+        self.eps = eps
+        self.data_format = data_format
+        if self.data_format not in ["channels_last", "channels_first"]:
+            raise NotImplementedError 
+        self.normalized_shape = (normalized_shape, )
+    
+    def forward(self, x):
+        if self.data_format == "channels_last":
+            return F.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
+        elif self.data_format == "channels_first":
+            u = x.mean(1, keepdim=True)
+            s = (x - u).pow(2).mean(1, keepdim=True)
+            x = (x - u) / torch.sqrt(s + self.eps)
+            x = self.weight[:, None, None] * x + self.bias[:, None, None]
+            return x
+        
+
 class PrototypeLayer(nn.Module):
     def __init__(
             self, 
             num_classes, 
             paf='linear',
             init_weights=False,
-            prototype_shape = (10, 1024, 1, 1)
+            prototype_shape = (10, 1024, 1, 1),
+            falc=2048
         ):
         super().__init__()
         self.prototype_shape = prototype_shape
@@ -33,7 +63,7 @@ class PrototypeLayer(nn.Module):
             self.prototype_class_identity[j, j // num_prototypes_per_class] = 1
         
         # Initialize prototypes
-        first_add_on_layer_in_channels = 2048
+        first_add_on_layer_in_channels = falc
         self.add_on_layers = nn.Sequential(
             nn.Conv2d(
                 in_channels=first_add_on_layer_in_channels, 
@@ -194,34 +224,37 @@ class ResNet(nn.Module):
         self.base_model.fc = nn.Identity()
 
         # Add adapters to specific layers
-        self.adapters = nn.ModuleDict({
-            "layer1": AdapterModule(
-                256,
-                args.red_factor, 
-                args.init_weight_adapter
-            ),
-            "layer2": AdapterModule(
-                512, 
-                args.red_factor, 
-                args.init_weight_adapter
-            ),
-            "layer3": AdapterModule(
-                1024, 
-                args.red_factor, 
-                args.init_weight_adapter
-            ),
-            "layer4": AdapterModule(
-                2048, 
-                args.red_factor, 
-                args.init_weight_adapter
-            ),
-        })
+        self.adapters = nn.ModuleDict(
+            {
+                "layer1": AdapterModule(
+                    256,
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer2": AdapterModule(
+                    512, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer3": AdapterModule(
+                    1024, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer4": AdapterModule(
+                    2048, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+            }
+        )
 
         self.prototype_layer = PrototypeLayer(
             num_classes=2,
             paf=args.proto_activation,
             prototype_shape=args.proto_shape,
-            init_weights=args.init_weight_proto
+            init_weights=args.init_weight_proto,
+            falc=2048
         )
 
     def forward(self, x):
@@ -241,6 +274,322 @@ class ResNet(nn.Module):
         
         x = self.base_model.layer4(x)
         x = self.adapters["layer4"](x) 
+
+        class_logits, proto_distance = self.prototype_layer(x)
+        
+        return class_logits, proto_distance
+    
+
+class DenseNet(nn.Module):
+    def __init__(self, args):
+        super(DenseNet, self).__init__()
+        
+        self.base_model = models.densenet121(
+            weights=models.DenseNet121_Weights.IMAGENET1K_V1
+        ).features
+
+        if not args.fine_tune:
+            # Freeze all parameters of the base ResNet
+            for param in self.base_model.parameters():
+                param.requires_grad = False
+
+        # Add adapters to specific layers
+        self.adapters = nn.ModuleDict(
+            {
+                "layer1": AdapterModule(
+                    128,
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer2": AdapterModule(
+                    256, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer3": AdapterModule(
+                    512, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer4": AdapterModule(
+                    1024, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+            }
+        )
+
+        self.prototype_layer = PrototypeLayer(
+            num_classes=2,
+            paf=args.proto_activation,
+            prototype_shape=args.proto_shape,
+            init_weights=args.init_weight_proto,
+            falc=1024
+        )
+    
+    def forward(self, x):
+        x = self.base_model.conv0(x)
+        x = self.base_model.norm0(x)
+        x = self.base_model.relu0(x)
+        x = self.base_model.pool0(x)
+        x = self.base_model.denseblock1(x)
+        x = self.base_model.transition1(x)
+        x = self.adapters["layer1"](x)
+
+        x = self.base_model.denseblock2(x)
+        x = self.base_model.transition2(x)
+        x = self.adapters["layer2"](x)
+
+        x = self.base_model.denseblock3(x)
+        x = self.base_model.transition3(x)
+        x = self.adapters["layer3"](x)
+
+        x = self.base_model.denseblock4(x)
+        x = self.base_model.norm5(x)
+        x = self.adapters["layer4"](x)
+
+        class_logits, proto_distance = self.prototype_layer(x)
+        
+        return class_logits, proto_distance
+    
+
+class ConvNext(nn.Module):
+    def __init__(self, args):
+        super(ConvNext, self).__init__()
+        
+        self.base_model = models.convnext_tiny(
+            weights=models.ConvNeXt_Tiny_Weights.IMAGENET1K_V1
+        ).features
+
+        if not args.fine_tune:
+            # Freeze all parameters of the base ResNet
+            for param in self.base_model.parameters():
+                param.requires_grad = False
+
+        # self.base_model.fc = nn.Identity()
+        self.Fconv = nn.Sequential(
+            LayerNorm(768, eps=1e-6, data_format="channels_first"),
+            nn.Conv2d(
+                in_channels=768, 
+                out_channels=1536, 
+                kernel_size=(2, 2), 
+                stride=2
+            )
+        )
+
+        # Add adapters to specific layers
+        self.adapters = nn.ModuleDict(
+            {
+                "layer1": AdapterModule(
+                    192,
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer2": AdapterModule(
+                    384, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer3": AdapterModule(
+                    768, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer4": AdapterModule(
+                    1536, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+            }
+        )
+
+        self.prototype_layer = PrototypeLayer(
+            num_classes=2,
+            paf=args.proto_activation,
+            prototype_shape=args.proto_shape,
+            init_weights=args.init_weight_proto,
+            falc=1536
+        )
+    
+    def forward(self, x):
+        x = self.base_model[0](x)
+        x = self.base_model[1](x)
+        x = self.base_model[2](x)
+        x = self.adapters["layer1"](x)
+
+        x = self.base_model[3](x)
+        x = self.base_model[4](x)
+        x = self.adapters["layer2"](x)
+
+        x = self.base_model[5](x)
+        x = self.base_model[6](x)
+        x = self.adapters["layer3"](x)
+
+        x = self.base_model[7](x)
+        x = self.Fconv(x)
+        x = self.adapters["layer4"](x)
+
+        class_logits, proto_distance = self.prototype_layer(x)
+        
+        return class_logits, proto_distance
+    
+
+class RegNet(nn.Module):
+    def __init__(self, args):
+        super(RegNet, self).__init__()
+        
+        self.base_model = models.regnet_y_8gf(
+            weights=models.RegNet_Y_8GF_Weights.IMAGENET1K_V1
+        )
+
+        if not args.fine_tune:
+            # Freeze all parameters of the base ResNet
+            for param in self.base_model.parameters():
+                param.requires_grad = False
+
+        self.base_model.fc = nn.Identity()
+
+        # Add adapters to specific layers
+        self.adapters = nn.ModuleDict(
+            {
+                "layer1": AdapterModule(
+                    224,
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer2": AdapterModule(
+                    448, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer3": AdapterModule(
+                    896, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer4": AdapterModule(
+                    2016, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+            }
+        )
+
+        self.prototype_layer = PrototypeLayer(
+            num_classes=2,
+            paf=args.proto_activation,
+            prototype_shape=args.proto_shape,
+            init_weights=args.init_weight_proto,
+            falc=2016
+        )
+    
+    def forward(self, x):
+        x = self.base_model.stem(x)
+        x = self.base_model.trunk_output.block1(x)
+        x = self.adapters["layer1"](x)
+
+        x = self.base_model.trunk_output.block2(x)
+        x = self.adapters["layer2"](x)
+
+        x = self.base_model.trunk_output.block3(x)
+        x = self.adapters["layer3"](x)
+
+        x = self.base_model.trunk_output.block4(x)
+        x = self.adapters["layer4"](x)
+
+        class_logits, proto_distance = self.prototype_layer(x)
+        
+        return class_logits, proto_distance
+    
+
+class VGG(nn.Module):
+    def __init__(self, args):
+        super(VGG, self).__init__()
+        
+        self.base_model = models.vgg16(
+            weights=models.VGG16_Weights.IMAGENET1K_V1
+        ).features
+
+        if not args.fine_tune:
+            # Freeze all parameters of the base ResNet
+            for param in self.base_model.parameters():
+                param.requires_grad = False
+
+        # self.base_model.fc = nn.Identity()
+
+        # Add adapters to specific layers
+        self.adapters = nn.ModuleDict(
+            {
+                "layer1": AdapterModule(
+                    128,
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer2": AdapterModule(
+                    256, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer3": AdapterModule(
+                    512, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+                "layer4": AdapterModule(
+                    512, 
+                    args.red_factor, 
+                    args.init_weight_adapter
+                ),
+            }
+        )
+
+        self.prototype_layer = PrototypeLayer(
+            num_classes=2,
+            paf=args.proto_activation,
+            prototype_shape=args.proto_shape,
+            init_weights=args.init_weight_proto,
+            falc=512
+        )
+    
+    def forward(self, x):
+        x = self.base_model[0](x)
+        x = self.base_model[1](x)
+        x = self.base_model[2](x)
+        x = self.base_model[3](x)
+        x = self.base_model[4](x)
+        x = self.base_model[5](x)
+        x = self.base_model[6](x)
+        x = self.base_model[7](x)
+        x = self.base_model[8](x)
+        x = self.base_model[9](x)
+        x = self.adapters["layer1"](x)
+
+        x = self.base_model[10](x)
+        x = self.base_model[11](x)
+        x = self.base_model[12](x)
+        x = self.base_model[13](x)
+        x = self.base_model[14](x)
+        x = self.base_model[15](x)
+        x = self.base_model[16](x)
+        x = self.adapters["layer2"](x)
+
+        x = self.base_model[17](x)
+        x = self.base_model[18](x)
+        x = self.base_model[19](x)
+        x = self.base_model[20](x)
+        x = self.base_model[21](x)
+        x = self.base_model[22](x)
+        x = self.base_model[23](x)
+        x = self.adapters["layer3"](x)
+
+        x = self.base_model[24](x)
+        x = self.base_model[25](x)
+        x = self.base_model[26](x)
+        x = self.base_model[27](x)
+        x = self.base_model[28](x)
+        x = self.base_model[29](x)
+        x = self.base_model[30](x)
+        x = self.adapters["layer4"](x)
 
         class_logits, proto_distance = self.prototype_layer(x)
         
