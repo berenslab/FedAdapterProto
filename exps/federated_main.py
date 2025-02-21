@@ -231,7 +231,7 @@ if __name__ == '__main__':
             local_model.train()
             local_model_list.append(local_model)
     elif args.mode == 'model_heter':
-        models = [ResNet, ConvNext, RegNet, VGG, DenseNet]
+        models = [ConvNext, RegNet, VGG, DenseNet]
         for i in range(args.num_users):
             model = models[i]
             local_model = model(args)

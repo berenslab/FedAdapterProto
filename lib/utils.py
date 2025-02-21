@@ -44,23 +44,6 @@ def get_dataset(args):
         train_data = data.copy()  # Create a separate copy for training
         test_data = data.copy()
 
-        train_transform = transforms.Compose([
-            transforms.Resize(args.img_size),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomVerticalFlip(p=0.5),
-            transforms.RandomRotation(degrees=5),
-            transforms.ColorJitter(
-                brightness=0.05,
-                hue=0.05,
-                saturation=[0.8, 1.2],
-                contrast=0.9
-            ),
-            transforms.Normalize(
-                [0.485, 0.456, 0.406],
-                [0.229, 0.224, 0.225])
-            ]
-        )
-
         test_transform = transforms.Compose([
             transforms.Resize(args.img_size),
             transforms.Normalize(
@@ -73,7 +56,7 @@ def get_dataset(args):
             data=train_data,
             tgt=args.target,
             root_dir='/gpfs01/berens/data/data/eyepacs/data_processed/images', 
-            transformations=train_transform
+            transformations=None
         )
         test_dataset = eyepacs.FundusDataset(
             data=test_data,

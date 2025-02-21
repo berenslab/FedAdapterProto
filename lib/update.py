@@ -11,6 +11,7 @@ import numpy as np
 from sklearn.utils import class_weight
 from sklearn.model_selection import train_test_split
 import torch.nn.functional as F
+from torchvision import transforms
 from torchsampler import ImbalancedDatasetSampler
 
 
@@ -63,9 +64,40 @@ class LocalUpdate(object):
             shuffle=True
         )
 
+        tr_dataset = copy.deepcopy(dataset)
+        val_dataset = copy.deepcopy(dataset)
+
+        train_transform = transforms.Compose([
+            transforms.Resize(self.args.img_size),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomVerticalFlip(p=0.5),
+            transforms.RandomRotation(degrees=5),
+            transforms.ColorJitter(
+                brightness=0.05,
+                hue=0.05,
+                saturation=[0.8, 1.2],
+                contrast=0.9
+            ),
+            transforms.Normalize(
+                [0.485, 0.456, 0.406],
+                [0.229, 0.224, 0.225])
+            ]
+        )
+
+        val_transform = transforms.Compose([
+            transforms.Resize(self.args.img_size),
+            transforms.Normalize(
+                [0.485, 0.456, 0.406],
+                [0.229, 0.224, 0.225])
+            ]
+        )
+
+        tr_dataset.transformations = train_transform
+        val_dataset.transformations = val_transform
+
         if not self.args.use_sampler:
             trainloader = DataLoader(
-                DatasetSplit(dataset, idxs_train),
+                DatasetSplit(tr_dataset, idxs_train),
                 batch_size=self.args.local_bs, 
                 shuffle=True, 
                 num_workers=64,
@@ -75,7 +107,7 @@ class LocalUpdate(object):
             )
 
             validloader = DataLoader(
-                DatasetSplit(dataset, idxs_valid),
+                DatasetSplit(val_dataset, idxs_valid),
                 batch_size=self.args.local_bs, 
                 shuffle=False, 
                 num_workers=64,
@@ -87,10 +119,10 @@ class LocalUpdate(object):
         elif self.args.use_sampler:
 
             trainloader = DataLoader(
-                DatasetSplit(dataset, idxs_train),
+                DatasetSplit(tr_dataset, idxs_train),
                 batch_size=self.args.local_bs, 
                 sampler=ImbalancedDatasetSampler(
-                    DatasetSplit(dataset, idxs_train)
+                    DatasetSplit(tr_dataset, idxs_train)
                 ),
                 num_workers=64,
                 pin_memory=True,
@@ -99,7 +131,7 @@ class LocalUpdate(object):
             )
 
             validloader = DataLoader(
-                DatasetSplit(dataset, idxs_valid),
+                DatasetSplit(val_dataset, idxs_valid),
                 batch_size=self.args.local_bs, 
                 shuffle=False, 
                 num_workers=64,
