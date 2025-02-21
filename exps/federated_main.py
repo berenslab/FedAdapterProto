@@ -64,7 +64,7 @@ def FedProtoAdap_heter(
 
         print(f'\n | Global Training Round : {round + 1} |\n')
 
-        local_steps ={}
+        local_steps = {}
         for idx, idx_u in enumerate(idxs_users):
             local_update = LocalUpdate(
                 args=args, 
