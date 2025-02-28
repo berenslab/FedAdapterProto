@@ -6,7 +6,13 @@
 *.pyc
 *.pt
 *.svg
+*.png
 *.0
+*.zip
+*.gz
+*.tar
+*.tar.gz
+*.tgz
 
 tensorboard/
 wandb/
@@ -14,3 +20,4 @@ sweep.py
 sweep.yaml
 configs/
 scripts/sweep.sh
+visualize.py

@@ -2,7 +2,7 @@
 # bash ./scripts/baseline.sh
 echo script name: $0
 
-$TRAIN_DIR=/gpfs01/berens/user/smensah/Postdoc/FedRetFound/FedAdapterProto/exps/
+$TRAIN_DIR=...
 
 python ${TRAIN_DIR}/federated_main.py \
     --mode task_heter \

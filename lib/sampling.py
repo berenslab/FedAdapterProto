@@ -268,7 +268,7 @@ def fundus_noniid(dataset, num_users, phase='train'):
 
 
 if __name__ == '__main__':
-    path = "/gpfs01/berens/data/data/eyepacs/data_processed/metadata/"
+    path = "..."
     data = pd.read_csv(
         os.path.join(
             path, 
@@ -278,7 +278,7 @@ if __name__ == '__main__':
     )
     dataset = eyepacs.FundusDataset(
         data=data,
-        root_dir='/gpfs01/berens/data/data/eyepacs/data_processed/images', 
+        root_dir="...", 
         transformations=None
     )
     num = 100

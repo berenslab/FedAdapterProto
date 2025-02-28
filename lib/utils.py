@@ -22,7 +22,7 @@ def get_dataset(args):
 
     if args.dataset == 'fundus':
         data = pd.read_csv(
-            "/gpfs01/berens/data/data/eyepacs/data_processed/metadata/metadata_image_circular_crop.csv",
+            "...",
             low_memory=False
         )
         data = data.loc[:, ~data.columns.str.match('Unnamed')]
@@ -55,13 +55,13 @@ def get_dataset(args):
         train_dataset = eyepacs.FundusDataset(
             data=train_data,
             tgt=args.target,
-            root_dir='/gpfs01/berens/data/data/eyepacs/data_processed/images', 
+            root_dir='...', 
             transformations=None
         )
         test_dataset = eyepacs.FundusDataset(
             data=test_data,
             tgt=args.target,
-            root_dir='/gpfs01/berens/data/data/eyepacs/data_processed/images', 
+            root_dir='...', 
             transformations=test_transform
         )
 
@@ -93,13 +93,13 @@ def get_dataset(args):
             )
     elif args.dataset == 'ERM':
         train_df = pd.read_csv(
-            '/gpfs01/berens/user/smensah/Postdoc/ERM/split_data/train.csv'
+            '...'
         )
         valid_df = pd.read_csv(
-            '/gpfs01/berens/user/smensah/Postdoc/ERM/split_data/valid.csv'
+            '...'
         )
         test_df = pd.read_csv(
-            '/gpfs01/berens/user/smensah/Postdoc/ERM/split_data/test.csv'
+            '...'
         )
 
         train_df = train_df.loc[:, ~train_df.columns.str.contains('^Unnamed')]
@@ -138,7 +138,7 @@ def get_dataset(args):
 
         train_dataset = ERM.ERMDataset(
             train_dataset,
-            '/gpfs01/berens/data/data/UKT/GeliskenJonas/',
+            '...',
             'label',
             binary=True,
             transformations=train_transform
@@ -146,7 +146,7 @@ def get_dataset(args):
 
         test_dataset = ERM.ERMDataset(
             test_dataset,
-            '/gpfs01/berens/data/data/UKT/GeliskenJonas/',
+            '...',
             'label',
             binary=True,
             transformations=test_transform
@@ -168,13 +168,13 @@ def get_dataset(args):
 
     elif args.dataset == 'Kermany':
         train_df = pd.read_csv(
-            '/gpfs01/berens/data/data/kermani_oct/CellData/csv/train.csv'
+            '...'
         )
         valid_df = pd.read_csv(
-            '/gpfs01/berens/data/data/kermani_oct/CellData/csv/val.csv'
+            '...'
         )
         test_df = pd.read_csv(
-            '/gpfs01/berens/data/data/kermani_oct/CellData/csv/test.csv'
+            '...'
         )
 
         train_df = train_df.loc[:, ~train_df.columns.str.contains('^Unnamed')]
@@ -220,14 +220,14 @@ def get_dataset(args):
 
         train_dataset = kermany.Kermany(
             train_dataset,
-            '/gpfs01/berens/data/data/kermani_oct/CellData/OCT/train/',
+            '...',
             'label',
             transformations=train_transform
         )
 
         test_dataset = kermany.Kermany(
             test_dataset,
-            '/gpfs01/berens/data/data/kermani_oct/CellData/OCT/train/',
+            '...',
             'label',
             transformations=test_transform
         )
