@@ -74,7 +74,8 @@ def args_parser():
     parser.add_argument('--seed', type=int, default=1000, help='random seed')
 
     # Add wandb sweep argument
-    # parser.add_argument('--config', type=str, help='Path to config file for wandb sweep')
+    # parser.add_argument('--config', type=str, 
+    # help='Path to config file for wandb sweep')
 
     args = parser.parse_args()
     return args

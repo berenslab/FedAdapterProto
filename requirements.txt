@@ -1,0 +1,8 @@
+torch=2.5.0
+torchvision=0.20.0
+torchsampler=0.1.2
+numpy=1.26.4
+pandas=2.2.2
+scikit-learn=1.5.2
+opencv-python-headless==4.11.0.86
+tqdm=2.2.3
