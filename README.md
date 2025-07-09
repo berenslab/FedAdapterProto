@@ -52,9 +52,9 @@ If you find this project helpful, please consider citing this work:
     author={Mensah, Samuel Ofosu and Djoumessi, Kerol and Berens, Philipp},
     title={Prototype-Guided and Lightweight Adapters for Inherent Interpretation and Generalisation in Federated Learning}, 
     year={2025},
-    eprint={ },
+    eprint={2507.05852},
     archivePrefix={arXiv},
     primaryClass={cs.CV},
-    url={https://arxiv.org/abs/}, 
+    url={https://arxiv.org/abs/2507.05852}, 
 }
 ```
